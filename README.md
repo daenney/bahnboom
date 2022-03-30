@@ -1,7 +1,10 @@
-# Bahnboom
-
-A CLI that reports current service disruptions and planned maintenance for
-[Bahnhof](https://bahnhof.se).
+<h1 align="center">🌐 Bahnboom 🧰</h1>
+<h4 align="center">A CLI that reports current service disurptions and planned
+  maintenance for <a href="https://bahnhof.se">Bahnhof</a>.</h4>
+<p align="center">
+    <a href="https://github.com/daenney/bahnboom/actions/workflows/ci.yaml"><img src="https://github.com/daenney/bahnboom/actions/workflows/ci.yaml/badge.svg" alt="Build Status"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/daenney/bahnboom" alt="License: MIT"></a>
+</p>
 
 Please note that since Bahnhof does not provide an API or RSS feed with
 status information this CLI does some trickery to get it from the website.
