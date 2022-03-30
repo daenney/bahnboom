@@ -15,6 +15,16 @@ import (
 
 const base = "https://bahnhof.se/kundservice/driftinfo"
 const api = "https://bahnhof.se/ajax/kundservice/driftinfo"
+const userAgent = "bahnboom (+https://github.com/daenney/bahnboom)"
+
+type transport struct{}
+
+func (*transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", userAgent)
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+var client = &http.Client{Transport: &transport{}}
 
 type response struct {
 	Status string `json:"status"`
@@ -120,7 +130,7 @@ func tokens(ctx context.Context) (e error, cookie *http.Cookie, csrf string) {
 		return err, cookie, csrf
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err, cookie, csrf
 	}
@@ -190,7 +200,7 @@ func issues(ctx context.Context, cookie *http.Cookie, csrf string) (error, []ent
 	req.Header.Set("X-CSRF-TOKEN", csrf)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err, nil
 	}
