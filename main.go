@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"sort"
+	"time"
 )
 
 func main() {
@@ -21,12 +23,21 @@ func main() {
 		os.Exit(0)
 	}
 
-	err, cookie, csrf := tokens(context.TODO())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	ctx2, cancel2 := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel2()
+
+	err, cookie, csrf := tokens(ctx2)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	err, issues := issues(context.TODO(), cookie, csrf)
+	ctx3, cancel3 := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel3()
+
+	err, issues := issues(ctx3, cookie, csrf)
 	if err != nil {
 		log.Fatalln(err)
 	}
