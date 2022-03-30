@@ -191,7 +191,7 @@ func tokens(ctx context.Context) (e error, cookie *http.Cookie, csrf string) {
 }
 
 func issues(ctx context.Context, cookie *http.Cookie, csrf string) (error, []entry) {
-	req, err := http.NewRequestWithContext(context.TODO(), http.MethodGet, api, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, api, nil)
 	if err != nil {
 		return err, nil
 	}
