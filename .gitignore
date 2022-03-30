@@ -1,0 +1,10 @@
+bahnboom
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+.vscode
+dist/

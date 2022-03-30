@@ -1,0 +1,36 @@
+project_name: bahnboom
+builds:
+  - id: cli
+    binary: bahnboom
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 7
+archives:
+  - id: cli
+    builds:
+      - cli
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - README.md
+    replacements:
+      darwin: macOS
+    format_overrides:
+      - goos: windows
+        format: zip
