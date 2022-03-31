@@ -17,8 +17,15 @@ import (
 const base = "https://bahnhof.se/kundservice/driftinfo"
 const api = "https://bahnhof.se/ajax/kundservice/driftinfo"
 const userAgent = "bahnboom (+https://github.com/daenney/bahnboom)"
+const timeFormat = "15:04"
+const dateFormat = "2006-01-02"
+const dateTimeFormat = "2006-01-02 15:04"
 
-var matcher = regexp.MustCompile(`(?i)^\p{L}+ - (?P<date>\d{4}-\d{2}-\d{2}) - (?P<planned>planerat servicearbete - )?(?P<rest>.*)$`)
+var (
+	titleMatcher = regexp.MustCompile(`(?i)^\p{L}+ - (?P<date>\d{4}-\d{2}-\d{2}) - (?P<planned>planerat servicearbete - )?(?P<rest>.*)$`)
+	startMatcher = regexp.MustCompile(`Start:\s+(?P<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2})`)
+	stopMatcher  = regexp.MustCompile(`Stop:\s+(?P<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2})`)
+)
 
 type transport struct{}
 
@@ -39,10 +46,16 @@ type data struct {
 }
 
 type entry struct {
-	Location string    `json:"location"`
-	Operator string    `json:"operator"`
-	Planned  bool      `json:"planned"`
-	Date     time.Time `json:"date"`
+	Location string     `json:"location"`
+	Operator string     `json:"operator"`
+	Planned  bool       `json:"planned"`
+	Date     time.Time  `json:"date"`
+	Start    *time.Time `json:"start,omitempty"`
+	Stop     *time.Time `json:"stop,omitempty"`
+}
+
+type message struct {
+	Message string `json:"message"`
 }
 
 func (e *entry) UnmarshalJSON(b []byte) error {
@@ -58,26 +71,60 @@ func (e *entry) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	var msgs []message
+	err = json.Unmarshal(*objmap["messages"], &msgs)
+	if err != nil {
+		return err
+	}
+
 	date, location, operator, planned := parseTitle(title)
 	e.Location = location
 	e.Operator = operator
 	e.Date = date
 	e.Planned = planned
+	start, stop := parseStartStop(msgs)
+	if !start.Equal(time.Time{}) {
+		e.Start = &start
+	}
+	if !stop.Equal(time.Time{}) {
+		e.Stop = &stop
+	}
 	return nil
 }
 
 func formatMaintenance(e *entry) string {
 	b := strings.Builder{}
-	b.WriteString(fmt.Sprintf("• 👷 %s: Scheduled maintenance on %s", e.Date.Format("2006-01-02"), e.Operator))
+	b.WriteString(fmt.Sprintf("• 👷 %s: Scheduled maintenance on %s", e.Date.Format(dateFormat), e.Operator))
+	if !e.Start.Equal(time.Time{}) {
+		format := dateTimeFormat
+		if sameDay(e.Date, *e.Start) {
+			format = timeFormat
+		}
+		b.WriteString(fmt.Sprintf(" starting at: %s", e.Start.Format(format)))
+	}
+	if !e.Stop.Equal(time.Time{}) {
+		format := dateTimeFormat
+		if sameDay(e.Date, *e.Stop) {
+			format = timeFormat
+		}
+		b.WriteString(fmt.Sprintf(" lasting until: %s", e.Stop.Format(format)))
+	}
 	if e.Location != "" {
 		b.WriteString(fmt.Sprintf(" in %s", e.Location))
 	}
 	return b.String()
 }
 
+func sameDay(d1, d2 time.Time) bool {
+	if d1.Year() == d2.Year() && d1.Month() == d2.Month() && d1.Day() == d2.Day() {
+		return true
+	}
+	return false
+}
+
 func formatDisruption(e *entry) string {
 	b := strings.Builder{}
-	b.WriteString(fmt.Sprintf("• 🔥 %s: Ongoing service disruption on %s", e.Date.Format("2006-01-02"), e.Operator))
+	b.WriteString(fmt.Sprintf("• 🔥 %s: Ongoing service disruption on %s", e.Date.Format(dateFormat), e.Operator))
 	if e.Location != "" {
 		b.WriteString(fmt.Sprintf(" in %s", e.Location))
 	}
@@ -85,9 +132,9 @@ func formatDisruption(e *entry) string {
 }
 
 func parseTitle(title string) (date time.Time, location, operator string, planned bool) {
-	match := matcher.FindStringSubmatch(title)
+	match := titleMatcher.FindStringSubmatch(title)
 	params := map[string]string{}
-	for i, name := range matcher.SubexpNames() {
+	for i, name := range titleMatcher.SubexpNames() {
 		if i > 0 && i <= len(match) {
 			params[name] = match[i]
 		}
@@ -104,9 +151,9 @@ func parseTitle(title string) (date time.Time, location, operator string, planne
 		loc = time.UTC
 	}
 
-	date, err = time.ParseInLocation("2006-01-02", params["date"], loc)
+	date, err = time.ParseInLocation(dateFormat, params["date"], loc)
 	if err != nil {
-		date = time.Unix(0, 0)
+		date = time.Time{}
 	}
 
 	return date, location, operator, planned
@@ -125,6 +172,32 @@ func extractLocationAndOperator(s string) (location, operator string) {
 	default:
 		return "", ""
 	}
+}
+
+func parseStartStop(msgs []message) (start, stop time.Time) {
+	for _, msg := range msgs {
+		matchStart := startMatcher.FindStringSubmatch(msg.Message)
+		matchStop := stopMatcher.FindStringSubmatch(msg.Message)
+		if len(matchStart) != 2 || len(matchStop) != 2 {
+			continue
+		}
+
+		loc, err := time.LoadLocation("Europe/Stockholm")
+		if err != nil {
+			loc = time.UTC
+		}
+
+		start, err = time.ParseInLocation(dateTimeFormat, matchStart[1], loc)
+		if err != nil {
+			continue
+		}
+		stop, err = time.ParseInLocation(dateTimeFormat, matchStop[1], loc)
+		if err != nil {
+			continue
+		}
+		break
+	}
+	return start, stop
 }
 
 func tokens(ctx context.Context) (e error, cookie *http.Cookie, csrf string) {
