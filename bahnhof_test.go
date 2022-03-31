@@ -43,6 +43,8 @@ func TestParseTitle(t *testing.T) {
 		planned  bool
 	}{
 		{input: "Driftstörning - 2022-03-29 - Ludvika (IP-Only)", date: time.Date(2022, 03, 29, 0, 0, 0, 0, loc), location: "Ludvika", operator: "IP-Only", planned: false},
+		{input: "Driftstörning - 2022-03-29 - (IP-Only)", date: time.Date(2022, 03, 29, 0, 0, 0, 0, loc), location: "", operator: "IP-Only", planned: false},
+		{input: "Driftstörning - 2022-03-29 - IP-Only", date: time.Date(2022, 03, 29, 0, 0, 0, 0, loc), location: "", operator: "IP-Only", planned: false},
 		{input: "Driftstörning - 2022-03-30 - Planerat Servicearbete - Bodekullsvägen, Karlshamn (Open Universe)", date: time.Date(2022, 03, 30, 0, 0, 0, 0, loc), location: "Bodekullsvägen, Karlshamn", operator: "Open Universe", planned: true},
 		{input: "Driftstörning - 2022-03-31 - Planerat Servicearbete - (Open Universe)", date: time.Date(2022, 03, 31, 0, 0, 0, 0, loc), location: "", operator: "Open Universe", planned: true},
 		{input: "Driftstörning - 2022-03-31 - Planerat Servicearbete - Open Universe", date: time.Date(2022, 03, 31, 0, 0, 0, 0, loc), location: "", operator: "Open Universe", planned: true},
