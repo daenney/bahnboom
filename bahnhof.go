@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 	_ "time/tzdata"
@@ -16,6 +17,8 @@ import (
 const base = "https://bahnhof.se/kundservice/driftinfo"
 const api = "https://bahnhof.se/ajax/kundservice/driftinfo"
 const userAgent = "bahnboom (+https://github.com/daenney/bahnboom)"
+
+var matcher = regexp.MustCompile(`(?i)^\p{L}+ - (?P<date>\d{4}-\d{2}-\d{2}) - (?P<planned>planerat servicearbete - )?(?P<rest>.*)$`)
 
 type transport struct{}
 
@@ -82,26 +85,26 @@ func formatDisruption(e *entry) string {
 }
 
 func parseTitle(title string) (date time.Time, location, operator string, planned bool) {
-	elems := strings.Split(title, "-")
-	switch len(elems) {
-	case 6:
-		location, operator = extractLocationAndOperator(strings.TrimSpace(elems[5]))
-		if strings.ToLower(strings.TrimSpace(elems[4])) == "planerat servicearbete" {
-			planned = true
+	match := matcher.FindStringSubmatch(title)
+	params := map[string]string{}
+	for i, name := range matcher.SubexpNames() {
+		if i > 0 && i <= len(match) {
+			params[name] = match[i]
 		}
-	case 5:
-		location, operator = extractLocationAndOperator(strings.TrimSpace(elems[4]))
-	default:
-		return time.Unix(0, 0), "", "", false
 	}
+
+	if params["planned"] != "" {
+		planned = true
+	}
+
+	location, operator = extractLocationAndOperator(params["rest"])
 
 	loc, err := time.LoadLocation("Europe/Stockholm")
 	if err != nil {
 		loc = time.UTC
 	}
 
-	sdate := strings.Join([]string{strings.TrimSpace(elems[1]), strings.TrimSpace(elems[2]), strings.TrimSpace(elems[3])}, "-")
-	date, err = time.ParseInLocation("2006-01-02", sdate, loc)
+	date, err = time.ParseInLocation("2006-01-02", params["date"], loc)
 	if err != nil {
 		date = time.Unix(0, 0)
 	}
