@@ -70,17 +70,20 @@ func (e *entry) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	var msgs []message
-	err = json.Unmarshal(*objmap["messages"], &msgs)
-	if err != nil {
-		return err
-	}
-
 	date, location, operator, planned := parseTitle(title)
 	e.Location = location
 	e.Operator = operator
 	e.Date = date
 	e.Planned = planned
+
+	var msgs []message
+	err = json.Unmarshal(*objmap["messages"], &msgs)
+	// If we can't decode messages, then we're done and can
+	// return here
+	if err != nil {
+		return nil
+	}
+
 	start, stop := parseStartStop(msgs)
 	if !start.Equal(time.Time{}) {
 		e.Start = &start
@@ -94,14 +97,14 @@ func (e *entry) UnmarshalJSON(b []byte) error {
 func formatMaintenance(e *entry) string {
 	b := strings.Builder{}
 	b.WriteString(fmt.Sprintf("• 👷 %s: Scheduled maintenance on %s", e.Date.Format(dateFormat), e.Operator))
-	if !e.Start.Equal(time.Time{}) {
+	if e.Start != nil {
 		format := dateTimeFormat
 		if sameDay(e.Date, *e.Start) {
 			format = timeFormat
 		}
 		b.WriteString(fmt.Sprintf(" starting at: %s", e.Start.Format(format)))
 	}
-	if !e.Stop.Equal(time.Time{}) {
+	if e.Stop != nil {
 		format := dateTimeFormat
 		if sameDay(e.Date, *e.Stop) {
 			format = timeFormat
