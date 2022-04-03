@@ -57,6 +57,9 @@ func main() {
 
 	for _, entry := range issues {
 		if entry.Planned {
+			if entry.Stop.Before(time.Now().In(getLocation())) {
+				continue
+			}
 			fmt.Println(formatMaintenance(&entry))
 		} else {
 			fmt.Println(formatDisruption(&entry))

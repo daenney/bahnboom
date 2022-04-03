@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	_ "time/tzdata"
 
 	"golang.org/x/net/html"
 )
@@ -146,12 +145,7 @@ func parseTitle(title string) (date time.Time, location, operator string, planne
 
 	location, operator = extractLocationAndOperator(params["rest"])
 
-	loc, err := time.LoadLocation("Europe/Stockholm")
-	if err != nil {
-		loc = time.UTC
-	}
-
-	date, err = time.ParseInLocation(dateFormat, params["date"], loc)
+	date, err := time.ParseInLocation(dateFormat, params["date"], getLocation())
 	if err != nil {
 		date = time.Time{}
 	}
@@ -182,16 +176,13 @@ func parseStartStop(msgs []message) (start, stop time.Time) {
 			continue
 		}
 
-		loc, err := time.LoadLocation("Europe/Stockholm")
-		if err != nil {
-			loc = time.UTC
-		}
-
-		start, err = time.ParseInLocation(dateTimeFormat, matchStart[1], loc)
+		var err error
+		start, err = time.ParseInLocation(dateTimeFormat, matchStart[1], getLocation())
 		if err != nil {
 			continue
 		}
-		stop, err = time.ParseInLocation(dateTimeFormat, matchStop[1], loc)
+
+		stop, err = time.ParseInLocation(dateTimeFormat, matchStop[1], getLocation())
 		if err != nil {
 			continue
 		}
